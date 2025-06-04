@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TDLib Bug Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 24px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 24px;
+      color: #3b82f6;
+    }
+    .state-display {
+      margin-bottom: 16px;
+    }
+    .state-label {
+      font-size: 14px;
+      color: #666;
+    }
+    .state-value {
+      font-weight: 600;
+      font-size: 18px;
+    }
+    .error {
+      margin-bottom: 16px;
+      padding: 12px;
+      background-color: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #b91c1c;
+      border-radius: 4px;
+      display: none;
+    }
+    .auth-form {
+      display: none;
+      margin-bottom: 16px;
+    }
+    .auth-form h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .auth-form p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 8px 12px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    .success {
+      display: none;
+      margin-bottom: 16px;
+    }
+    .success h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #10b981;
+    }
+    .debug-actions {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 16px;
+      margin-top: 24px;
+    }
+    .debug-actions h4 {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #4b5563;
+    }
+    .debug-button {
+      background-color: #e5e7eb;
+      color: #4b5563;
+      font-size: 14px;
+    }
+    .debug-button:hover {
+      background-color: #d1d5db;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Telegram Auth Test</h1>
+
+    <div class="state-display">
+      <p class="state-label">Current state:</p>
+      <p class="state-value" id="state-display">Starting...</p>
+    </div>
+
+    <div class="error" id="error-box"></div>
+
+    <div class="auth-form" id="phone-form">
+      <h3>Enter Phone Number</h3>
+      <input type="text" id="phone-input" placeholder="+1234567890" value="" />
+      <button id="phone-button">Send Phone</button>
+    </div>
+
+    <div class="auth-form" id="code-form">
+      <h3>Enter Verification Code</h3>
+      <p>Check your Telegram app for the verification code</p>
+      <input type="text" id="code-input" placeholder="12345" />
+      <button id="code-button">Send Code</button>
+    </div>
+
+    <div class="auth-form" id="password-form">
+      <h3>Enter 2FA Password</h3>
+      <p>Your account has two-factor authentication enabled</p>
+      <input type="password" id="password-input" placeholder="Password" />
+      <button id="password-button">Send Password</button>
+    </div>
+
+    <div class="success" id="success-display">
+      <h3>✅ Successfully Authenticated!</h3>
+      <p>You are now logged in to Telegram</p>
+    </div>
+
+    <div class="debug-actions">
+      <h4>Debug Actions</h4>
+      <button id="get-me-button" class="debug-button">get me</button>
+    </div>
+  </div>
+
+  <script src="./tdweb.js"></script>
+  
+  <script>
+    const apiId = '2496';
+    const apiHash = '8da85b0d5bfe62527e5b244c209159c3';
+
+    if (!apiId || !apiHash) {
+      document.getElementById('error-box').textContent = 
+        "Missing API ID or API Hash. Please add them to the script.";
+      document.getElementById('error-box').style.display = 'block';
+    }
+
+    const TdClient = window.tdweb.default;
+
+    let tdClient = null;
+    
+    function handleUpdate(update) {
+      console.log("Update: ", update);
+      
+      if (update["@type"] === "updateFatalError") {
+        console.error("Fatal error:", update.error);
+        setError(`Fatal error: ${update.error}`);
+      } 
+      else if (update["@type"] === "updateAuthorizationState") {
+        const state = update.authorization_state["@type"];
+        console.log("Auth state changed to:", state);
+        updateAuthState(state);
+
+        if (state === "authorizationStateWaitTdlibParameters") {
+          sendQuery({
+            "@type": "setTdlibParameters",
+            database_directory: "tdlib",
+            use_message_database: true,
+            use_secret_chats: false,
+            api_id: apiId,
+            api_hash: apiHash,
+            system_language_code: "en",
+            device_model: "Web",
+            application_version: "1.0",
+            enable_storage_optimizer: true,
+            use_test_dc: false,
+          });
+        }
+      }
+    }
+    
+    async function sendQuery(query) {
+      try {
+        const result = await tdClient.send(query);
+        console.log("Query result: ", query, result);
+        return result;
+      } catch (error) {
+        console.warn("Query failed: ", query, error);
+        throw error;
+      }
+    }
+    
+    function initializeTdClient() {
+      tdClient = new TdClient({
+        instanceName: "telegram-web-v2",
+        onUpdate: handleUpdate,
+        jsLogVerbosityLevel: 3,
+        logVerbosityLevel: 1,
+        useDatabase: true,
+      });
+      return sendQuery({ "@type": "getAuthorizationState" });
+    }
+    
+    let authState = "";
+    let phone = "";
+    let code = "";
+    let password = "";
+
+    const stateDisplay = document.getElementById('state-display');
+    const errorBox = document.getElementById('error-box');
+    const phoneForm = document.getElementById('phone-form');
+    const codeForm = document.getElementById('code-form');
+    const passwordForm = document.getElementById('password-form');
+    const successDisplay = document.getElementById('success-display');
+    
+    const phoneInput = document.getElementById('phone-input');
+    const codeInput = document.getElementById('code-input');
+    const passwordInput = document.getElementById('password-input');
+    
+    function setError(message) {
+      if (message) {
+        errorBox.textContent = message;
+        errorBox.style.display = 'block';
+      } else {
+        errorBox.style.display = 'none';
+      }
+    }
+
+    function updateAuthState(state) {
+      authState = state;
+      
+      phoneForm.style.display = 'none';
+      codeForm.style.display = 'none';
+      passwordForm.style.display = 'none';
+      successDisplay.style.display = 'none';
+      
+      switch (state) {
+        case "authorizationStateWaitTdlibParameters":
+          stateDisplay.textContent = "Initializing...";
+          break;
+        case "authorizationStateWaitEncryptionKey":
+          stateDisplay.textContent = "Setting up encryption...";
+          break;
+        case "authorizationStateWaitPhoneNumber":
+          stateDisplay.textContent = "Waiting for phone number";
+          phoneForm.style.display = 'block';
+          break;
+        case "authorizationStateWaitCode":
+          stateDisplay.textContent = "Waiting for verification code";
+          codeForm.style.display = 'block';
+          break;
+        case "authorizationStateWaitPassword":
+          stateDisplay.textContent = "Waiting for 2FA password";
+          passwordForm.style.display = 'block';
+          break;
+        case "authorizationStateReady":
+          stateDisplay.textContent = "Authenticated!";
+          successDisplay.style.display = 'block';
+          console.log("AUTH SUCCESS!");
+          break;
+        default:
+          stateDisplay.textContent = state || "Starting...";
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeTdClient();
+
+      document.getElementById('phone-button').addEventListener('click', () => {
+        phone = phoneInput.value;
+        
+        if (!phone) {
+          setError("Please enter a phone number");
+          return;
+        }
+
+        if (!phone.startsWith("+")) {
+          setError("Phone number must start with + and country code");
+          return;
+        }
+
+        console.log("Sending phone number:", phone);
+        setError("");
+
+        sendQuery({
+          "@type": "setAuthenticationPhoneNumber",
+          phone_number: phone,
+        });
+      });
+
+      document.getElementById('code-button').addEventListener('click', () => {
+        code = codeInput.value;
+        
+        if (!code) {
+          setError("Please enter the verification code");
+          return;
+        }
+
+        console.log("Sending code:", code);
+        setError("");
+
+        sendQuery({
+          "@type": "checkAuthenticationCode",
+          code: code,
+        });
+      });
+
+      document.getElementById('password-button').addEventListener('click', () => {
+        password = passwordInput.value;
+        
+        if (!password) {
+          setError("Please enter your 2FA password");
+          return;
+        }
+
+        console.log("Sending password");
+        setError("");
+
+        sendQuery({
+          "@type": "checkAuthenticationPassword",
+          password: password,
+        });
+      });
+
+      document.getElementById('get-me-button').addEventListener('click', () => {
+        sendQuery({
+          "@type": "getMe",
+        }).then((res) => {
+          console.log("getMe result:", res);
+          alert(`User info: ${res.first_name} ${res.last_name} (@${res.username})`);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

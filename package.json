@@ -1,0 +1,11 @@
+{
+  "name": "tdlib-bug-demo",
+  "version": "1.0.0",
+  "description": "Telegram TDLib Bug Demo",
+  "scripts": {
+    "serve": "serve public -p 5177"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
