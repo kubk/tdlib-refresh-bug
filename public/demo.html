@@ -220,10 +220,10 @@
     
     function initializeTdClient() {
       tdClient = new TdClient({
-        instanceName: "telegram-web-v2",
+        instanceName: "telegram-web-v3",
         onUpdate: handleUpdate,
-        jsLogVerbosityLevel: 3,
-        logVerbosityLevel: 1,
+        jsLogVerbosityLevel: 1,
+        logVerbosityLevel: 4,
         useDatabase: true,
       });
       return sendQuery({ "@type": "getAuthorizationState" });
@@ -304,10 +304,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      initializeTdClient()
+      // initializeTdClient()
       // if you replace the line above with this
       // it'll fix the error somehow:
-      // initializeTdClient().then(getTdlibVersion);
+      initializeTdClient().then(getTdlibVersion);
 
       document.getElementById('phone-button').addEventListener('click', () => {
         phone = phoneInput.value;
